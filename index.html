@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Sruthi's Daily Routine</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: #fdf6f0; font-family: Georgia, serif; }
+    button { outline: none; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const WORK_DAYS = ["Mon","Tue","Thu","Fri","Sat"];
+
+const getTodayLabel = () => DAY_NAMES[new Date().getDay()];
+
+// Week = Mon–Sun. Sunday always belongs to the current Mon-start week.
+const getWeekKey = () => {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const mon = new Date(now);
+  mon.setDate(now.getDate() + diffToMon);
+  return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+};
+
+const storageKey = (day) => `sr3-${getWeekKey()}-${day}`;
+const loadChecks = (day) => { try { const r = localStorage.getItem(storageKey(day)); return r ? JSON.parse(r) : {}; } catch { return {}; } };
+const saveChecks = (day, c) => { try { localStorage.setItem(storageKey(day), JSON.stringify(c)); } catch {} };
+
+const HOBBY = (id, time) => ({ id, emoji: "✨", label: "Free slot — read, journal, script, paint or stitch", time, color: "#C77DFF" });
+const T = (id, emoji, label, time, color) => ({ id, emoji, label, time, color });
+
+const getDayTasks = (day) => {
+  const isWork = WORK_DAYS.includes(day);
+  const isWed = day === "Wed";
+  const isSun = day === "Sun";
+  const tasks = [];
+
+  // ── MORNING ──
+  if (!isWed && !isSun) {
+    tasks.push(T("wake",    "💧", "Wake up — stretch in bed, psyllium husk + 500ml water", "7:00 AM", "#F4A261"));
+    tasks.push(HOBBY("free-am", "7:30 AM"));
+    tasks.push(T("shower",  "🚿", "Shower", "8:30 AM", "#2A9D8F"));
+    tasks.push(T("skin-am", "🌿", "AM skincare", "8:45 AM", "#2A9D8F"));
+    tasks.push(T("dressed", "👗", "Get dressed + hair", "8:50 AM", "#2A9D8F"));
+    tasks.push(T("pack",    "🍱", "Grab lunch box from fridge", "9:15 AM", "#2A9D8F"));
+    tasks.push(T("leave",   "🚗", "Leave for work", "9:20 AM", "#2A9D8F"));
+  } else if (isWed) {
+    tasks.push(T("wake-w",  "💧", "Wake naturally — stretch in bed, psyllium husk + 500ml water", "9:00 AM", "#F4A261"));
+    tasks.push(HOBBY("free-w1", "9:30 AM"));
+  } else {
+    tasks.push(T("wake-s",  "💧", "Wake naturally — stretch in bed, psyllium husk + 500ml water", "9:00 AM", "#F4A261"));
+    tasks.push(HOBBY("free-s1", "9:30 AM"));
+  }
+
+  // ── WORK ──
+  if (isWork) {
+    tasks.push(T("work",    "💼", "Work — fully protected", "9:30 AM", "#264653"));
+    tasks.push(T("lunch",   "🍱", "Lunch box at desk", "1:00 PM", "#264653"));
+    tasks.push(T("stretch", "⏱️", "5-min stretch every 90 min", "Ongoing", "#264653"));
+    tasks.push(T("insta",   "📵", "Instagram muted — one check at lunch only", "Ongoing", "#264653"));
+  }
+
+  // ── WEDNESDAY ──
+  if (isWed) {
+    tasks.push(T("oil-w",   "💆", "Hair oil + body exfoliation", "10:30 AM", "#C77DFF"));
+    tasks.push(HOBBY("free-w2", "11:30 AM"));
+    tasks.push(T("groc",    "🛒", "Grocery run + life admin", "1:00 PM", "#457B9D"));
+    tasks.push(T("cook",    "📦", "Tray bake — kumara, chicken, broccoli (200°C fan, 40 min)", "3:00 PM", "#E9C46A"));
+    tasks.push(T("boxes",   "🫙", "Stack + label 5 lunch boxes in fridge", "3:50 PM", "#E9C46A"));
+    tasks.push(HOBBY("free-w3", "4:00 PM"));
+    tasks.push(T("mia",     "🧡", "Mia time 💛", "4:30 PM", "#F4A261"));
+    tasks.push(T("room",    "🧹", "Room clean — vacuum, surfaces, floor", "6:30 PM", "#2A9D8F"));
+    tasks.push(T("hair-w",  "🚿", "Wash hair + full shower", "7:00 PM", "#2A9D8F"));
+  }
+
+  // ── SUNDAY ──
+  if (isSun) {
+    tasks.push(T("oil-s",   "💆", "Hair oil + body exfoliation", "10:30 AM", "#C77DFF"));
+    tasks.push(HOBBY("free-s2", "11:30 AM"));
+    tasks.push(T("scripts", "📝", "Script 3–5 reel ideas for the week", "1:00 PM", "#9B5DE5"));
+    tasks.push(T("review",  "📊", "Review last week's content — what landed, what didn't", "1:30 PM", "#9B5DE5"));
+    tasks.push(HOBBY("free-s3", "2:00 PM"));
+    tasks.push(T("hair-s",  "🚿", "Wash hair + full shower", "3:30 PM", "#2A9D8F"));
+    tasks.push(T("bath",    "🛁", "Bathroom clean — scrub, toilet, mirrors", "4:00 PM", "#2A9D8F"));
+    tasks.push(HOBBY("free-s4", "5:00 PM"));
+  }
+
+  // ── WORK EVENINGS ──
+  if (isWork) {
+    tasks.push(T("home",    "🎒", "Home — pack gym bag immediately", "5:40 PM", "#E9C46A"));
+    tasks.push(HOBBY("free-eve", "5:50 PM"));
+
+    const content = {
+      Mon: T("content", "🎬", "Film a reel OR edit weekend footage", "6:20 PM", "#9B5DE5"),
+      Tue: T("content", "✂️", "Edit + schedule posts for the week", "6:20 PM", "#9B5DE5"),
+      Thu: T("content", "🎬", "Film if inspiration hit, or check insights", "6:20 PM", "#9B5DE5"),
+      Fri: T("content", "✂️", "Final edits + upload ready content", "6:20 PM", "#9B5DE5"),
+      Sat: T("content", "📸", "Shoot — golden hour, B-roll, outfit shots, reels", "6:20 PM", "#9B5DE5"),
+    };
+    if (content[day]) tasks.push(content[day]);
+  }
+
+  // ── PRE-GYM (all days) ──
+  tasks.push(T("preworkout", "⚡", "Pre-workout + water bottle ready + playlist on", "7:30 PM", "#E76F51"));
+  tasks.push(T("gym",        "🏋️", "Gym — lower body split + incline treadmill (or rest day)", "8:00 PM", "#E76F51"));
+
+  // ── BF CALL ──
+  tasks.push(T("bf",         "🤍", "Bf call — post-gym eggs or smoothie while you talk", "10:00 PM", "#F4A261"));
+
+  // ── WIND DOWN ──
+  tasks.push(T("journal",    "📓", "Journal", "11:00 PM", "#457B9D"));
+  tasks.push(T("skin-pm",    "🌿", "PM skincare", "11:15 PM", "#457B9D"));
+  tasks.push(T("phone",      "📵", "Phone face-down", "11:45 PM", "#457B9D"));
+  tasks.push(T("sleep",      "😴", "Lights out", "12:00 AM", "#457B9D"));
+
+  return tasks;
+};
+
+// ── WEEKLY SUMMARY ──
+function WeeklySummary() {
+  const stats = {};
+  for (const d of DAYS) {
+    const tasks = getDayTasks(d);
+    const checks = loadChecks(d);
+    const total = tasks.length;
+    const done = tasks.filter(t => checks[t.id]).length;
+    stats[d] = { total, done, pct: total ? Math.round((done/total)*100) : 0 };
+  }
+  const totalTasks = Object.values(stats).reduce((s,d) => s+d.total, 0);
+  const totalDone  = Object.values(stats).reduce((s,d) => s+d.done, 0);
+  const pct = totalTasks ? Math.round((totalDone/totalTasks)*100) : 0;
+  const C = 2*Math.PI*50;
+
+  const msg = pct>=90 ? { e:"🔥", t:"You absolutely showed up this week. That's the version of you building the life." }
+            : pct>=75 ? { e:"✨", t:"Solid week. More days in than out — that's consistency." }
+            : pct>=50 ? { e:"🌱", t:"Half the week was yours. Next week, take a bit more of it." }
+            :           { e:"🌿", t:"Rough week — it happens. Reset tonight and go again. That's literally the whole plan." };
+
+  return (
+    <div style={{maxWidth:480,margin:"0 auto",padding:"0 16px 40px"}}>
+      <div style={{background:"linear-gradient(135deg,#1a1a2e,#16213e)",borderRadius:20,padding:"28px 24px",marginBottom:14,textAlign:"center",boxShadow:"0 8px 30px rgba(26,26,46,0.25)"}}>
+        <p style={{color:"#E9C46A",fontSize:10,letterSpacing:4,textTransform:"uppercase",fontFamily:"Georgia,serif",margin:"0 0 18px"}}>Week in Review</p>
+        <div style={{position:"relative",display:"inline-block",marginBottom:16}}>
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10"/>
+            <circle cx="60" cy="60" r="50" fill="none"
+              stroke={pct>=75?"#E9C46A":pct>=50?"#9B5DE5":"#E76F51"}
+              strokeWidth="10" strokeLinecap="round"
+              strokeDasharray={C} strokeDashoffset={C*(1-pct/100)}
+              transform="rotate(-90 60 60)"/>
+          </svg>
+          <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+            <span style={{fontSize:26,fontWeight:700,color:"#fff",fontFamily:"Georgia,serif"}}>{pct}%</span>
+            <span style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontFamily:"Georgia,serif"}}>complete</span>
+          </div>
+        </div>
+        <p style={{color:"rgba(255,255,255,0.5)",fontSize:13,fontFamily:"Georgia,serif",margin:"0 0 4px",fontStyle:"italic"}}>{totalDone} of {totalTasks} tasks done</p>
+        <p style={{color:"rgba(255,255,255,0.85)",fontSize:13.5,fontFamily:"Georgia,serif",lineHeight:1.6,margin:"14px 0 0",fontStyle:"italic"}}>{msg.e} {msg.t}</p>
+      </div>
+      <div style={{background:"#fff",borderRadius:16,overflow:"hidden",boxShadow:"0 2px 12px rgba(0,0,0,0.07)"}}>
+        {DAYS.map((d,i) => {
+          const s = stats[d];
+          const bar = s.pct>=75?"#E9C46A":s.pct>=50?"#9B5DE5":s.pct>0?"#E76F51":"#eee";
+          return (
+            <div key={d} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:i<DAYS.length-1?"1px solid #f5f5f5":"none"}}>
+              <span style={{fontSize:13,fontFamily:"Georgia,serif",color:"#888",width:32,flexShrink:0}}>{d}</span>
+              <div style={{flex:1,height:6,background:"#f0f0f0",borderRadius:10,overflow:"hidden"}}>
+                <div style={{width:`${s.pct}%`,height:"100%",background:bar,borderRadius:10}}/>
+              </div>
+              <span style={{fontSize:12,color:"#aaa",fontFamily:"Georgia,serif",width:38,textAlign:"right",flexShrink:0}}>{s.done}/{s.total}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN ──
+function App() {
+  const today = getTodayLabel();
+  const [activeDay, setActiveDay]     = useState(today);
+  const [checks, setChecks]           = useState(() => loadChecks(today));
+  const [showSummary, setShowSummary] = useState(false);
+
+  useEffect(() => { setChecks(loadChecks(activeDay)); setShowSummary(false); }, [activeDay]);
+
+  const toggle = useCallback((id) => {
+    setChecks(prev => {
+      const next = {...prev, [id]: !prev[id]};
+      saveChecks(activeDay, next);
+      return next;
+    });
+  }, [activeDay]);
+
+  const tasks  = getDayTasks(activeDay);
+  const done   = tasks.filter(t => checks[t.id]).length;
+  const total  = tasks.length;
+  const pct    = total ? Math.round((done/total)*100) : 0;
+  const isSun  = activeDay === "Sun";
+
+  const meta   = {Mon:"Work day",Tue:"Work day",Wed:"Cook · Errands · Self Care · Mia 🧡",Thu:"Work day",Fri:"Work day",Sat:"Work + Shoot Day",Sun:"Rest + Reset"};
+  const badges = {Wed:"🌿 Your Day",Sat:"📸 Shoot Day",Sun:"☀️ Rest + Reset"};
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#fdf6f0 0%,#f4f0ff 45%,#fdf0fa 100%)",paddingBottom:80}}>
+
+      {/* HEADER */}
+      <div style={{background:"linear-gradient(135deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%)",padding:"40px 24px 26px",textAlign:"center",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 15% 60%,rgba(155,93,229,0.18) 0%,transparent 55%),radial-gradient(ellipse at 85% 40%,rgba(244,162,97,0.12) 0%,transparent 55%)",pointerEvents:"none"}}/>
+        <p style={{color:"#E9C46A",fontSize:10,letterSpacing:5,textTransform:"uppercase",margin:"0 0 8px",position:"relative",fontFamily:"Georgia,serif"}}>Designed for Sruthi</p>
+        <h1 style={{color:"#fff",fontSize:28,fontWeight:400,margin:"0 0 4px",fontStyle:"italic",position:"relative",fontFamily:"Georgia,serif"}}>Your Daily Architecture</h1>
+        <p style={{color:"rgba(255,255,255,0.4)",fontSize:12,margin:0,fontStyle:"italic",position:"relative",fontFamily:"Georgia,serif"}}>discipline is the new soft life</p>
+      </div>
+
+      {/* DAY TABS */}
+      <div style={{display:"flex",justifyContent:"center",gap:6,padding:"18px 12px 6px",flexWrap:"wrap"}}>
+        {DAYS.map(d => {
+          const isOff   = d==="Wed"||d==="Sun";
+          const isActive = activeDay===d;
+          const isToday  = d===today;
+          return (
+            <button key={d} onClick={() => setActiveDay(d)} style={{
+              padding:"8px 15px",borderRadius:30,
+              border: isActive?"2px solid #9B5DE5":isToday?"2px solid rgba(155,93,229,0.35)":"2px solid transparent",
+              background: isActive?"#9B5DE5":isOff?"rgba(233,196,106,0.13)":"rgba(255,255,255,0.8)",
+              color: isActive?"#fff":isOff?"#9a7000":"#555",
+              fontFamily:"Georgia,serif",fontSize:13,fontWeight:isActive?600:400,
+              boxShadow:isActive?"0 4px 14px rgba(155,93,229,0.3)":"0 2px 8px rgba(0,0,0,0.05)",
+              position:"relative",
+            }}>
+              {d}
+              {isToday&&!isActive&&<span style={{position:"absolute",top:3,right:3,width:5,height:5,borderRadius:"50%",background:"#9B5DE5"}}/>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* BADGE */}
+      <div style={{textAlign:"center",padding:"6px 0 12px"}}>
+        {badges[activeDay]&&<span style={{background:"linear-gradient(135deg,#E9C46A,#F4A261)",color:"#fff",padding:"3px 12px",borderRadius:20,fontSize:11,letterSpacing:2,textTransform:"uppercase",fontFamily:"Georgia,serif",marginRight:8}}>{badges[activeDay]}</span>}
+        <span style={{fontSize:12,color:"#999",fontFamily:"Georgia,serif",fontStyle:"italic"}}>{meta[activeDay]}</span>
+      </div>
+
+      {/* PROGRESS */}
+      <div style={{maxWidth:480,margin:"0 auto 14px",padding:"0 16px"}}>
+        <div style={{background:"#fff",borderRadius:14,padding:"14px 16px",boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <span style={{fontSize:12,color:"#888",fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+              {done===total&&total>0?"Day complete 🎉":`${done} of ${total} done`}
+            </span>
+            <span style={{fontSize:13,fontWeight:600,color:pct===100?"#E9C46A":"#9B5DE5",fontFamily:"Georgia,serif"}}>{pct}%</span>
+          </div>
+          <div style={{height:6,background:"#f0f0f0",borderRadius:10,overflow:"hidden"}}>
+            <div style={{width:`${pct}%`,height:"100%",background:pct===100?"linear-gradient(90deg,#E9C46A,#F4A261)":"linear-gradient(90deg,#9B5DE5,#C77DFF)",borderRadius:10,transition:"width 0.4s ease"}}/>
+          </div>
+        </div>
+      </div>
+
+      {/* SUNDAY SUMMARY BUTTON */}
+      {isSun&&(
+        <div style={{maxWidth:480,margin:"0 auto 14px",padding:"0 16px"}}>
+          <button onClick={() => setShowSummary(!showSummary)} style={{
+            width:"100%",padding:13,borderRadius:14,
+            background:showSummary?"linear-gradient(135deg,#1a1a2e,#16213e)":"rgba(233,196,106,0.12)",
+            border:"1px solid rgba(233,196,106,0.3)",
+            color:showSummary?"#E9C46A":"#9a7000",
+            fontFamily:"Georgia,serif",fontSize:14,fontStyle:"italic",
+          }}>
+            {showSummary?"← Back to today's tasks":"✨ See this week's progress report"}
+          </button>
+        </div>
+      )}
+
+      {/* TASKS or SUMMARY */}
+      {showSummary ? <WeeklySummary/> : (
+        <div style={{maxWidth:480,margin:"0 auto",padding:"0 16px"}}>
+          {tasks.map(task => {
+            const isDone = !!checks[task.id];
+            const isHobby = task.id.startsWith("free-");
+            return (
+              <div key={task.id} onClick={() => toggle(task.id)} style={{
+                display:"flex",alignItems:"flex-start",gap:12,
+                padding:"13px 14px",marginBottom:8,borderRadius:14,cursor:"pointer",
+                background: isDone?`${task.color}12`:isHobby?"rgba(199,125,255,0.06)":"#fff",
+                border: isDone?`1.5px solid ${task.color}35`:isHobby?"1.5px dashed rgba(199,125,255,0.3)":"1.5px solid transparent",
+                boxShadow: isDone||isHobby?"none":"0 2px 10px rgba(0,0,0,0.06)",
+                opacity: isDone?0.72:1,
+                transition:"all 0.18s",
+              }}>
+                <div style={{
+                  width:22,height:22,borderRadius:"50%",flexShrink:0,marginTop:2,
+                  border:isDone?"none":`2px solid ${task.color}60`,
+                  background:isDone?task.color:"transparent",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  boxShadow:isDone?`0 2px 8px ${task.color}40`:"none",
+                  transition:"all 0.18s",
+                }}>
+                  {isDone&&<span style={{color:"#fff",fontSize:11,fontWeight:"bold"}}>✓</span>}
+                </div>
+                <span style={{fontSize:17,flexShrink:0,marginTop:1}}>{task.emoji}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,color:isDone?"#aaa":"#1a1a2e",fontFamily:"Georgia,serif",lineHeight:1.5,textDecoration:isDone?"line-through":"none"}}>
+                    {task.label}
+                  </div>
+                  <div style={{fontSize:11,color:task.color,fontFamily:"Georgia,serif",fontStyle:"italic",marginTop:2,opacity:isDone?0.55:1}}>
+                    {task.time}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{textAlign:"center",padding:"24px 16px 0"}}>
+        <p style={{fontSize:12,color:"#bbb",fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+          "she lost her spark — now she's building the whole fire" 🔥
+        </p>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
